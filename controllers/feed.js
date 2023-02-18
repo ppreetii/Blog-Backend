@@ -4,11 +4,24 @@ const Post = require("../models/post");
 const utils = require("../utils/helper");
 
 exports.getPosts = (req, res, next) => {
+  const currentPage = req.query.page || 1;
+  const perPage = 2;
+  let totalItems;
+
   Post.find()
+    .countDocuments()
+    .then((count) => {
+      totalItems = count;
+
+      return Post.find()
+        .skip((currentPage - 1) * perPage)
+        .limit(perPage);
+    })
     .then((posts) => {
       res.status(200).json({
         message: "Fetched all Posts successfully",
         posts,
+        totalItems
       });
     })
     .catch((err) => {
@@ -135,7 +148,7 @@ exports.updatePost = (req, res, next) => {
 
 exports.deletePost = (req, res, next) => {
   const postId = req.params.postId;
-  
+
   Post.findById(postId)
     .then((post) => {
       if (!post) {
@@ -147,10 +160,10 @@ exports.deletePost = (req, res, next) => {
       utils.clearImage(post.imageUrl);
       return Post.findByIdAndRemove(postId);
     })
-    .then(result =>{
+    .then((result) => {
       res.status(200).json({
-        message : "Deleted Post"
-      })
+        message: "Deleted Post",
+      });
     })
     .catch((err) => {
       if (!err.statusCode) {
