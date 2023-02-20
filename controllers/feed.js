@@ -37,6 +37,7 @@ exports.createPost = (req, res, next) => {
   if (!errors.isEmpty()) {
     const error = new Error("Validation Error");
     error.statusCode = 422;
+    error.data = errors.array();
     throw error;
   }
   if (!req.file) {
@@ -98,6 +99,7 @@ exports.updatePost = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     const error = new Error("Validation Error");
+    error.data = errors.array();
     error.statusCode = 422;
     throw error;
   }

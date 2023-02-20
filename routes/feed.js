@@ -1,8 +1,5 @@
 const express = require("express");
 const {body} = require("express-validator");
-const dotenv = require("dotenv");
-
-dotenv.config()
 
 const feedController = require("../controllers/feed");
 
