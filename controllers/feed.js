@@ -1,6 +1,7 @@
 const { validationResult } = require("express-validator");
 
 const Post = require("../models/post");
+const User = require("../models/user");
 const utils = require("../utils/helper");
 
 exports.getPosts = (req, res, next) => {
@@ -21,7 +22,7 @@ exports.getPosts = (req, res, next) => {
       res.status(200).json({
         message: "Fetched all Posts successfully",
         posts,
-        totalItems
+        totalItems,
       });
     })
     .catch((err) => {
@@ -52,14 +53,25 @@ exports.createPost = (req, res, next) => {
     title,
     content,
     imageUrl,
-    creator: { name: "Preeti" },
+    creator: req.userId,
   });
   post
     .save()
     .then((result) => {
+      return User.findById(req.userId);
+    })
+    .then((user) => {
+      user.posts.push(post); //mongodb will only store postId
+      return user.save();
+    })
+    .then((result) => {
       res.status(201).json({
         message: "Post Created",
-        post: result,
+        post,
+        creator: {
+          _id : result._id,
+          name: result.name
+        }
       });
     })
     .catch((err) => {
@@ -124,6 +136,12 @@ exports.updatePost = (req, res, next) => {
         throw error;
       }
 
+      if(post.creator.toString() !== req.userId){
+        const error = new Error("Unauthorized");
+        error.statusCode = 403;
+        throw error;
+      }
+
       if (imageUrl !== post.imageUrl) {
         utils.clearImage(post.imageUrl);
       }
@@ -158,9 +176,22 @@ exports.deletePost = (req, res, next) => {
         error.statusCode = 404;
         throw error;
       }
-      // TODO : Check loggedIn User
+      
+      if(post.creator.toString() !== req.userId){
+        const error = new Error("Unauthorized");
+        error.statusCode = 403;
+        throw error;
+      }
+
       utils.clearImage(post.imageUrl);
       return Post.findByIdAndRemove(postId);
+    })
+    .then((result) => {
+     return User.findById(req.userId);
+    })
+    .then((user) => {
+      user.posts.pull(postId);  // pull method is provided to us by mongoose
+      return user.save();
     })
     .then((result) => {
       res.status(200).json({
