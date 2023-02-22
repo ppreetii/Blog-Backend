@@ -17,6 +17,7 @@ exports.getPosts = (req, res, next) => {
 
       return Post.find()
         .populate("creator")
+        .sort({ createdAt : -1})  //descending order
         .skip((currentPage - 1) * perPage)
         .limit(perPage);
     })
