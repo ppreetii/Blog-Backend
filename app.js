@@ -76,11 +76,7 @@ mongoose
     const server = app.listen(process.env.PORT);
     console.log(`Server started at port ${process.env.PORT}`);
 
-    const io = require("socket.io")(server,{
-      cors: {
-        origin: '*',
-      }
-    });
+    const io = require("./socket").init(server);
     io.on("connection", (socket) => {
       console.log("Client Connected");
     });

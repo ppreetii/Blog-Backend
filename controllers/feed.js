@@ -1,5 +1,6 @@
 const { validationResult } = require("express-validator");
 
+const io = require("../socket");
 const Post = require("../models/post");
 const User = require("../models/user");
 const utils = require("../utils/helper");
@@ -15,6 +16,7 @@ exports.getPosts = (req, res, next) => {
       totalItems = count;
 
       return Post.find()
+        .populate("creator")
         .skip((currentPage - 1) * perPage)
         .limit(perPage);
     })
@@ -65,13 +67,30 @@ exports.createPost = (req, res, next) => {
       return user.save();
     })
     .then((result) => {
+      /*
+       There are two methods to sent out events to all clients:
+       1. broadcast : it will send message to all clients except the one making the request
+       2. emit : it will send message to all clients including the client that made the request
+       */
+      io.getIO() //get IO instance
+        .emit("posts", {
+          //attach event named "posts" to emit
+          action: "create",
+          post : {
+            ...post._doc,
+            creator: {
+              _id : req.userId,
+              name : result.name
+            }
+          }
+        });
       res.status(201).json({
         message: "Post Created",
         post,
         creator: {
-          _id : result._id,
-          name: result.name
-        }
+          _id: result._id,
+          name: result.name,
+        },
       });
     })
     .catch((err) => {
@@ -136,7 +155,7 @@ exports.updatePost = (req, res, next) => {
         throw error;
       }
 
-      if(post.creator.toString() !== req.userId){
+      if (post.creator.toString() !== req.userId) {
         const error = new Error("Unauthorized");
         error.statusCode = 403;
         throw error;
@@ -176,8 +195,8 @@ exports.deletePost = (req, res, next) => {
         error.statusCode = 404;
         throw error;
       }
-      
-      if(post.creator.toString() !== req.userId){
+
+      if (post.creator.toString() !== req.userId) {
         const error = new Error("Unauthorized");
         error.statusCode = 403;
         throw error;
@@ -187,10 +206,10 @@ exports.deletePost = (req, res, next) => {
       return Post.findByIdAndRemove(postId);
     })
     .then((result) => {
-     return User.findById(req.userId);
+      return User.findById(req.userId);
     })
     .then((user) => {
-      user.posts.pull(postId);  // pull method is provided to us by mongoose
+      user.posts.pull(postId); // pull method is provided to us by mongoose
       return user.save();
     })
     .then((result) => {
