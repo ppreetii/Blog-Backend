@@ -6,10 +6,14 @@ const mongoose = require("mongoose");
 const multer = require("multer");
 const { v4: uuid4 } = require("uuid");
 
+const {graphqlHTTP} = require("express-graphql")
+const graphqlSchema = require("./graphql/schema")
+const graphqlResolver = require("./graphql/resolvers")
+
 dotenv.config();
 
-const feedRoutes = require("./routes/feed");
-const authRoutes = require("./routes/auth");
+// const feedRoutes = require("./routes/feed");
+// const authRoutes = require("./routes/auth");
 
 const app = express();
 
@@ -52,8 +56,17 @@ app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization"); //allows different origins to set Content-Type and Authorization
   next();
 });
+
+/* 
 app.use("/feed", feedRoutes);
 app.use("/auth", authRoutes);
+*/
+
+app.use("/graphql", graphqlHTTP({
+  schema : graphqlSchema,
+  rootValue: graphqlResolver,
+  graphiql: true
+}))
 
 app.use((error, req, res, next) => {
   console.log(error);
@@ -73,12 +86,15 @@ mongoose
   .connect(process.env.MONGODB_URL)
   .then((result) => {
     console.log("Database Connected");
-    const server = app.listen(process.env.PORT);
+    app.listen(process.env.PORT);
     console.log(`Server started at port ${process.env.PORT}`);
-
+    /* 
+    const server = app.listen(process.env.PORT);
+   
     const io = require("./socket").init(server);
     io.on("connection", (socket) => {
       console.log("Client Connected");
     });
+    */
   })
   .catch((err) => console.log(err));
