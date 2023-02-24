@@ -38,14 +38,6 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-app.use(bodyParser.json());
-app.use(
-  multer({
-    storage: fileStorage,
-    fileFilter,
-  }).single("image")
-);
-app.use("/images", express.static(path.join(__dirname, "images")));
 //handle CORS issue
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*"); // wildcard(*) means allow from all origins
@@ -54,8 +46,25 @@ app.use((req, res, next) => {
     "GET, POST, PUT, PATCH, DELETE"
   ); //allows different origins to access only these methods
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization"); //allows different origins to set Content-Type and Authorization
+
+  //Graphql only takes GET and POST requests. Browser will always make automatic OPTIONS request before 
+  // making the intended HTTP request(GET,POST, PATCH, DELETE , etc). For Graphql , we will get method not allowed error for
+  // OPTIONS request, if following code is not added.
+  if(req.method === "OPTIONS"){
+    return res.sendStatus(200);
+  }
   next();
 });
+
+app.use(bodyParser.json());
+app.use(
+  multer({
+    storage: fileStorage,
+    fileFilter,
+  }).single("image")
+);
+app.use("/images", express.static(path.join(__dirname, "images")));
+
 
 /* 
 app.use("/feed", feedRoutes);
