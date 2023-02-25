@@ -6,6 +6,7 @@ const dotenv = require("dotenv");
 dotenv.config({ path: __dirname + "./../.env" });
 
 const User = require("../models/user");
+const Post = require("../models/post");
 
 module.exports = {
   createUser: async function (args, req) {
@@ -63,7 +64,7 @@ module.exports = {
       error.code = 422;
       throw error;
     }
-    
+
     const user = await User.findOne({ email });
     if (!user) {
       const error = new Error("User Not Found");
@@ -89,8 +90,79 @@ module.exports = {
     );
 
     return {
-        token,
-        userId: user._id.toString()
+      token,
+      userId: user._id.toString(),
+    };
+  },
+
+  createPost: async function ({ postInput }, req) {
+    if (!req.isAuth) {
+      const error = new Error("Not Authenticated");
+      error.code = 401;
+      throw error;
     }
+    const { title, content, imageUrl } = postInput;
+
+    //Validate Request Body
+    const errors = [];
+    if (validator.isEmpty(title) || !validator.isLength(title, { min: 5 }))
+      errors.push(
+        "Input Proper Title. Check your length if it is less than 5 characters"
+      );
+    if (validator.isEmpty(content) || !validator.isLength(content, { min: 5 }))
+      errors.push(
+        "Input Proper Content. Check your length if it is less than 5 characters"
+      );
+
+    if (errors.length > 0) {
+      const error = new Error("Validation Error");
+      error.data = errors;
+      error.code = 422;
+      throw error;
+    }
+    const user = await User.findById(req.userId);
+    if (!user) {
+      const error = new Error("User Not Found");
+      error.code = 401;
+      throw error;
+    }
+    const post = await Post({
+      title,
+      content,
+      imageUrl,
+      creator: user,
+    });
+
+    user.posts.push(post);
+    await user.save();
+    const dbPost = await post.save();
+    return {
+      ...dbPost._doc,
+      _id: dbPost._id.toString(),
+      createdAt: dbPost.createdAt.toISOString(),
+      updatedAt: dbPost.updatedAt.toISOString(),
+    };
+  },
+  getPosts: async function (args, req) {
+    if (!req.isAuth) {
+      const error = new Error("Not Authenticated");
+      error.code = 401;
+      throw error;
+    }
+
+    const totalItems = await Post.find().countDocuments();
+    const posts = await Post.find().populate("creator").sort({ createdAt: -1 });
+
+    return {
+      posts: posts.map((post) => {
+        return {
+          ...post._doc,
+          _id: post._id.toString(),
+          createdAt: post.createdAt.toISOString(),
+          updatedAt: post.updatedAt.toISOString(),
+        };
+      }),
+      totalItems,
+    };
   },
 };
