@@ -11,7 +11,7 @@ module.exports = buildSchema(`
         createdAt: String!
         updatedAt: String!
     }
-    
+
     type PostData {
       posts: [Post!]!
       totalItems: Int!
@@ -46,7 +46,7 @@ module.exports = buildSchema(`
 
     type RootQuery {
         login(email: String!, password: String!) : AuthData!
-        getPosts : PostData!
+        getPosts(page : Int) : PostData!
     }
 
     type RootMutation {
