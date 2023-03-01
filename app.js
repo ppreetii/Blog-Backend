@@ -6,10 +6,11 @@ const mongoose = require("mongoose");
 const multer = require("multer");
 const { v4: uuid4 } = require("uuid");
 
-const {graphqlHTTP} = require("express-graphql");
+const { graphqlHTTP } = require("express-graphql");
 const graphqlSchema = require("./graphql/schema");
 const graphqlResolver = require("./graphql/resolvers");
 const auth = require("./middlewares/auth");
+const Utils = require("./utils/helper");
 
 dotenv.config();
 
@@ -23,7 +24,7 @@ const fileStorage = multer.diskStorage({
     cb(null, "images");
   },
   filename: (req, file, cb) => {
-    cb(null, uuid4() + "-" + file.originalname);
+    cb(null,  uuid4() + "-" + file.originalname);
   },
 });
 
@@ -48,49 +49,72 @@ app.use((req, res, next) => {
   ); //allows different origins to access only these methods
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization"); //allows different origins to set Content-Type and Authorization
 
-  //Graphql only takes GET and POST requests. Browser will always make automatic OPTIONS request before 
+  //Graphql only takes GET and POST requests. Browser will always make automatic OPTIONS request before
   // making the intended HTTP request(GET,POST, PATCH, DELETE , etc). For Graphql , we will get method not allowed error for
   // OPTIONS request, if following code is not added.
-  if(req.method === "OPTIONS"){
+  if (req.method === "OPTIONS") {
     return res.sendStatus(200);
   }
   next();
 });
 
 app.use(bodyParser.json());
+app.use("/images", express.static(path.join(__dirname, "images")));
 app.use(
   multer({
     storage: fileStorage,
     fileFilter,
   }).single("image")
 );
-app.use("/images", express.static(path.join(__dirname, "images")));
-
 
 /* 
 app.use("/feed", feedRoutes);
 app.use("/auth", authRoutes);
 */
 app.use(auth);
-app.use("/graphql", graphqlHTTP({
-  schema : graphqlSchema,
-  rootValue: graphqlResolver,
-  graphiql: true,
-  customFormatErrorFn(err) {
-    if(!err.originalError){
-      return err;
-    }
-    console.log(err.originalError);
-    const data = err.originalError.data;
-    const code = err.originalError.code || 500; 
-    const message = err.originalError.message || "An error occurred";
-    return {
-      status: code,
-      message,
-      data
-    }
+
+app.put("/post-image", (req, res, next) => {
+  if(!req.isAuth){
+    throw new Error("Not Authenticated.")
   }
-}))
+  if (!req.file) {
+    return res.status(200).json({
+      message: "No file provided.",
+    });
+  }
+
+  if (req.body.oldPath) {
+    Utils.clearImage(req.body.oldPath);
+  }
+  console.log(req.file.path)
+  return res.status(201).json({
+    message: "File Uploaded.",
+    filePath: req.file.path,
+  });
+});
+
+app.use(
+  "/graphql",
+  graphqlHTTP({
+    schema: graphqlSchema,
+    rootValue: graphqlResolver,
+    graphiql: true,
+    customFormatErrorFn(err) {
+      if (!err.originalError) {
+        return err;
+      }
+      console.log(err.originalError);
+      const data = err.originalError.data;
+      const code = err.originalError.code || 500;
+      const message = err.originalError.message || "An error occurred";
+      return {
+        status: code,
+        message,
+        data,
+      };
+    },
+  })
+);
 
 app.use((error, req, res, next) => {
   console.log(error);
