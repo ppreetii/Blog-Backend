@@ -7,6 +7,7 @@ dotenv.config({ path: __dirname + "./../.env" });
 
 const User = require("../models/user");
 const Post = require("../models/post");
+const utils = require("../utils/helper");
 
 module.exports = {
   createUser: async function (args, req) {
@@ -168,6 +169,82 @@ module.exports = {
         };
       }),
       totalItems,
+    };
+  },
+  getPostById: async function ({ id }, req) {
+    if (!req.isAuth) {
+      const error = new Error("Not Authenticated");
+      error.code = 401;
+      throw error;
+    }
+
+    const post = await Post.findById(id).populate("creator");
+    if (!post) {
+      const error = new Error("Could not find post");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    return {
+      ...post._doc,
+      _id: post._id.toString(),
+      createdAt: post.createdAt.toISOString(),
+      updatedAt: post.updatedAt.toISOString(),
+    };
+  },
+  updatePost: async function ({ id, postInput }, req) {
+    if (!req.isAuth) {
+      const error = new Error("Not Authenticated");
+      error.code = 401;
+      throw error;
+    }
+
+    //Validate Request Body
+    const errors = [];
+    if (validator.isEmpty(postInput.title) || !validator.isLength(postInput.title, { min: 5 }))
+      errors.push(
+        "Input Proper Title. Check your length if it is less than 5 characters"
+      );
+    if (validator.isEmpty(postInput.content) || !validator.isLength(postInput.content, { min: 5 }))
+      errors.push(
+        "Input Proper Content. Check your length if it is less than 5 characters"
+      );
+
+    if (errors.length > 0) {
+      const error = new Error("Validation Error");
+      error.data = errors;
+      error.code = 422;
+      throw error;
+    }
+
+    const post = await Post.findById(id).populate("creator");
+    if (!post) {
+      const error = new Error("Post Not Found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (post.creator._id.toString() !== req.userId) {
+      const error = new Error("Unauthorized");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    post.title = postInput.title;
+    post.content = postInput.content;
+    if (postInput.imageUrl !== post.imageUrl) {
+      utils.clearImage(post.imageUrl);
+    }
+    if (postInput.imageUrl !== "null") {
+      post.imageUrl = postInput.imageUrl;
+    }
+    const dbPost = await post.save();
+
+    return {
+      ...dbPost._doc,
+      _id: dbPost._id.toString(),
+      createdAt: dbPost.createdAt.toISOString(),
+      updatedAt: dbPost.updatedAt.toISOString(),
     };
   },
 };
