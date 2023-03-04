@@ -247,4 +247,34 @@ module.exports = {
       updatedAt: dbPost.updatedAt.toISOString(),
     };
   },
+  deletePost: async function ({ id }, req) {
+    if (!req.isAuth) {
+      const error = new Error("Not Authenticated");
+      error.code = 401;
+      throw error;
+    }
+
+    const post = await Post.findById(id);
+    if (!post) {
+      const error = new Error("Post Not Found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (post.creator.toString() !== req.userId) {
+      const error = new Error("Unauthorized");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    utils.clearImage(post.imageUrl);
+    await Post.findByIdAndRemove(id);
+
+    const user = await User.findById(req.userId);
+    user.posts.pull(id); // pull method is provided to us by mongoose
+    await user.save();
+
+    return true;
+
+  },
 };
