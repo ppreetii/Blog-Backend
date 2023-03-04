@@ -201,11 +201,17 @@ module.exports = {
 
     //Validate Request Body
     const errors = [];
-    if (validator.isEmpty(postInput.title) || !validator.isLength(postInput.title, { min: 5 }))
+    if (
+      validator.isEmpty(postInput.title) ||
+      !validator.isLength(postInput.title, { min: 5 })
+    )
       errors.push(
         "Input Proper Title. Check your length if it is less than 5 characters"
       );
-    if (validator.isEmpty(postInput.content) || !validator.isLength(postInput.content, { min: 5 }))
+    if (
+      validator.isEmpty(postInput.content) ||
+      !validator.isLength(postInput.content, { min: 5 })
+    )
       errors.push(
         "Input Proper Content. Check your length if it is less than 5 characters"
       );
@@ -275,6 +281,45 @@ module.exports = {
     await user.save();
 
     return true;
+  },
+  user: async function (args, req) {
+    if (!req.isAuth) {
+      const error = new Error("Not Authenticated");
+      error.code = 401;
+      throw error;
+    }
 
+    const user = await User.findById(req.userId);
+    if (!user) {
+      const error = new Error("User Not Found");
+      error.code = 404;
+      throw error;
+    }
+
+    return {
+      ...user._doc,
+      _id: user._id.toString(),
+    };
+  },
+  updateStatus: async function ({ status }, req) {
+    if (!req.isAuth) {
+      const error = new Error("Not Authenticated");
+      error.code = 401;
+      throw error;
+    }
+
+    const user = await User.findById(req.userId);
+    if (!user) {
+      const error = new Error("User Not Found");
+      error.code = 404;
+      throw error;
+    }
+    user.status = status;
+    await user.save();
+    return {
+      ...user._doc,
+      _id: user._id.toString(),
+      status
+    };
   },
 };
