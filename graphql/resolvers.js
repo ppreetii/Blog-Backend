@@ -238,7 +238,8 @@ module.exports = {
 
     post.title = postInput.title;
     post.content = postInput.content;
-    if (postInput.imageUrl !== post.imageUrl) {
+   
+    if (postInput.imageUrl !== post.imageUrl && postInput.imageUrl !== "null") {
       utils.clearImage(post.imageUrl);
     }
     if (postInput.imageUrl !== "null") {
